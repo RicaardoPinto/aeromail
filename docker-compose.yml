@@ -1,0 +1,44 @@
+services:
+  # Webmail Application
+  aeromail:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aeromail-app
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - APP_SECRET=cambia_esta_clave_por_una_cadena_secreta_aleatoria_32_bytes!
+      - DATA_DIR=/app/data
+    volumes:
+      - aeromail_data:/app/data
+    networks:
+      - mail_network
+
+  # Caddy Reverse Proxy with Automatic SSL (Let's Encrypt)
+  caddy:
+    image: caddy:2-alpine
+    container_name: aeromail-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - aeromail
+    networks:
+      - mail_network
+
+volumes:
+  aeromail_data:
+    driver: local
+  caddy_data:
+  caddy_config:
+
+networks:
+  mail_network:
+    driver: bridge
