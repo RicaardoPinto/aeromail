@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { SmtpConfig, SendMailPayload } from "./types";
+import { verificarCertificadoTls } from "./tls";
 
 export function createSmtpTransporter(config: SmtpConfig) {
   return nodemailer.createTransport({
@@ -11,7 +12,7 @@ export function createSmtpTransporter(config: SmtpConfig) {
       pass: config.auth.pass,
     },
     tls: {
-      rejectUnauthorized: process.env.NODE_ENV === "production",
+      rejectUnauthorized: verificarCertificadoTls(),
     },
   });
 }

@@ -7,7 +7,7 @@ export function middleware(request: NextRequest) {
   // Strict Content Security Policy
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-inline' 'unsafe-eval';
+    script-src 'self' 'unsafe-inline';
     style-src 'self' 'unsafe-inline';
     img-src 'self' data: https: blob:;
     font-src 'self' data:;
@@ -36,15 +36,27 @@ export function middleware(request: NextRequest) {
   if (["POST", "PUT", "DELETE", "PATCH"].includes(request.method)) {
     const origin = request.headers.get("origin");
     const host = request.headers.get("host");
-    if (origin && host) {
-      const originHost = origin.replace(/^https?:\/\//, "");
-      if (!originHost.startsWith(host)) {
-        // Cross-origin state mutation blocked
-        return new NextResponse(
-          JSON.stringify({ error: "Bloqueado por validación de origen CSRF" }),
-          { status: 403, headers: { "Content-Type": "application/json" } }
-        );
+
+    /*
+      Comparacion exacta del host. Con `startsWith`, un origen como
+      `https://webmail.lyf.cl.sitio-malo.com` pasaba la validacion porque
+      empieza igual. Y si no venia cabecera `Origin` no se validaba nada:
+      ahora una peticion que modifica estado sin origen se rechaza.
+    */
+    let originHost: string | null = null;
+    if (origin) {
+      try {
+        originHost = new URL(origin).host;
+      } catch {
+        originHost = null;
       }
+    }
+
+    if (!host || originHost !== host) {
+      return new NextResponse(
+        JSON.stringify({ error: "Bloqueado por validación de origen CSRF" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
     }
   }
 

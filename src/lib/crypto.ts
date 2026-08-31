@@ -7,8 +7,26 @@ const IV_LENGTH = 12; // 96 bits for GCM
 const AUTH_TAG_LENGTH = 16;
 
 // Secret key derivation (32 bytes for AES-256)
+const LARGO_MINIMO_SECRETO = 32;
+
+/*
+  De esta clave se deriva el cifrado de las credenciales de correo que viajan
+  dentro del token de sesion. Antes habia un valor por defecto en el codigo:
+  como el repositorio es publico, cualquiera podia descifrar una cookie
+  filtrada. Ahora el servicio falla al arrancar si no esta definida.
+
+  Generar con:  openssl rand -base64 48
+*/
 function getMasterKey(): Buffer {
-  const secret = process.env.APP_SECRET || "aeromail-super-secure-production-secret-key-32b!";
+  const secret = process.env.APP_SECRET;
+
+  if (!secret || secret.length < LARGO_MINIMO_SECRETO) {
+    throw new Error(
+      `APP_SECRET no esta definida o tiene menos de ${LARGO_MINIMO_SECRETO} caracteres. ` +
+        "Sin ella no se pueden cifrar las credenciales de correo y el servicio no debe arrancar."
+    );
+  }
+
   return crypto.createHash("sha256").update(secret).digest();
 }
 

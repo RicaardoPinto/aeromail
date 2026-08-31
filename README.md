@@ -101,3 +101,27 @@ Abre [http://localhost:3000](http://localhost:3000) o [http://localhost:3001](ht
 ## 📄 Licencia
 
 Este proyecto es 100% de código abierto bajo la licencia [MIT](LICENSE).
+
+
+## Seguridad
+
+`APP_SECRET` es **obligatoria**. De ella se deriva el cifrado de las
+credenciales de correo que viajan dentro del token de sesion, asi que el
+servicio falla si no esta definida o tiene menos de 32 caracteres. Antes habia
+un valor por defecto en el codigo: como este repositorio es publico, esa clave
+la conocia cualquiera y una cookie filtrada se podia descifrar con ella.
+
+```bash
+openssl rand -base64 48
+```
+
+Otras decisiones que conviene conocer antes de desplegar:
+
+| Ajuste | Comportamiento |
+|---|---|
+| Modo demostracion | Se salta la verificacion de credenciales. Requiere `DEMO_MODE=true`, queda inhabilitado con `NODE_ENV=production` y solo acepta direcciones `@demo.local` |
+| Sesion | 24 horas, cookie `httpOnly`, `secure` y `sameSite=strict` |
+| Limite de intentos | Por IP (5 cada 5 min) y por cuenta (10 cada 15 min). La IP se toma del final de `x-forwarded-for`, que es la que pone el proxy |
+| CSRF | Comparacion exacta del host de `Origin`. Una peticion que modifica estado sin esa cabecera se rechaza |
+| `MAIL_TLS_INSECURE` | Desactiva la verificacion del certificado del servidor de correo. Solo para el salto por red interna de Docker, nunca contra internet |
+

@@ -1,5 +1,6 @@
 import { ImapFlow } from "imapflow";
 import { simpleParser, ParsedMail } from "mailparser";
+import { verificarCertificadoTls } from "./tls";
 import {
   ImapConfig,
   MailboxFolder,
@@ -22,7 +23,7 @@ export function createImapClient(config: ImapConfig): ImapFlow {
     logger: false, // Set to true if debugging connection
     emitLogs: false,
     tls: {
-      rejectUnauthorized: process.env.NODE_ENV === "production",
+      rejectUnauthorized: verificarCertificadoTls(),
     },
   });
 }
