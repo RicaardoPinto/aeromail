@@ -101,6 +101,8 @@ export interface Signature {
   htmlContent: string;
   plainText?: string;
   isDefault: boolean;
+  /** true cuando la genero la app: se regenera al cambiar la identidad */
+  generated?: boolean;
   associatedIdentityId?: string;
   createdAt: string;
   updatedAt: string;
@@ -109,12 +111,30 @@ export interface Signature {
 export interface Identity {
   id: string;
   userId: string;
+  /** Nombre visible para el destinatario, p. ej. "LyF Soluciones" */
   name: string;
   email: string;
   replyTo?: string;
   organization?: string;
+  /** Datos que alimentan la firma. Sin ellos se rellenaba con marcadores. */
+  title?: string;
+  phone?: string;
+  mobile?: string;
+  website?: string;
+  websiteUrl?: string;
+  address?: string;
+  logoUrl?: string;
+  brandColor?: string;
   isDefault: boolean;
   signatureId?: string;
+}
+
+/** Direccion vista en el buzon o usada al enviar, para autocompletar */
+export interface Contact {
+  address: string;
+  name?: string;
+  lastSeen: string;
+  count: number;
 }
 
 export interface UserPreferences {
@@ -124,6 +144,10 @@ export interface UserPreferences {
   blockRemoteImages: boolean;
   defaultSignatureId?: string;
   autoSaveDraftInterval: number; // seconds
+  /** Tipografia del redactor y de los correos que se envian */
+  composeFontFamily?: string;
+  composeFontSize?: number; // px
+  composeLineHeight?: number; // 1.2 - 1.8
 }
 
 export interface SendMailPayload {

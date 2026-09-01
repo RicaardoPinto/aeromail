@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Identity, Signature, SendMailPayload } from "@/lib/types";
+import { Contact, Identity, Signature, SendMailPayload } from "@/lib/types";
 import { TiptapEditor } from "../editor/TiptapEditor";
 import { compileSignature } from "@/lib/sanitizer";
 import {
@@ -30,6 +30,134 @@ interface ComposeModalProps {
     references?: string[];
   };
   onSentSuccess?: () => void;
+}
+
+const MARCA_FIRMA = "aeromail-sig";
+
+/**
+ * Variables de la firma a partir de la identidad. Lo que no este definido se
+ * deja vacio a proposito: antes se rellenaba con un cargo y un telefono de
+ * ejemplo que acababan saliendo en correos reales.
+ */
+function variablesDeIdentidad(ident?: Identity): Record<string, string> {
+  if (!ident) return {};
+  const nombre = ident.name || "";
+  return {
+    name: nombre,
+    email: ident.email || "",
+    company: ident.organization || "",
+    title: ident.title || "",
+    phone: ident.phone || "",
+    mobile: ident.mobile || "",
+    address: ident.address || "",
+    website: ident.website || "",
+    website_url: ident.websiteUrl || ident.website || "",
+    logo_url: ident.logoUrl || "",
+    initials: nombre.slice(0, 2).toUpperCase() || "?",
+  };
+}
+
+/**
+ * Quita las firmas ya insertadas y anade la nueva.
+ *
+ * Se usa el analizador del navegador y no una expresion regular porque la
+ * firma lleva div anidados: la regex anterior cortaba en el primer cierre y
+ * dejaba el resto huerfano, de modo que al probar varias se iban apilando.
+ */
+function reemplazarFirma(html: string, bloqueNuevo: string): string {
+  if (typeof window === "undefined" || typeof DOMParser === "undefined") {
+    return html + bloqueNuevo;
+  }
+  const doc = new DOMParser().parseFromString("<body>" + html + "</body>", "text/html");
+  doc.body
+    .querySelectorAll('[data-signature="aeromail-sig"]')
+    .forEach((nodo) => nodo.remove());
+  return doc.body.innerHTML + bloqueNuevo;
+}
+
+/**
+ * Campo de direcciones con sugerencias de contactos ya conocidos.
+ *
+ * Filtra por el ultimo tramo separado por coma, no por todo el contenido,
+ * para que siga funcionando cuando ya hay varios destinatarios escritos.
+ */
+function CampoDireccion({
+  valor,
+  onChange,
+  placeholder,
+  contactos,
+  className,
+}: {
+  valor: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  contactos: Contact[];
+  className: string;
+}) {
+  const [abierto, setAbierto] = useState(false);
+
+  const tramos = valor.split(",");
+  const actual = (tramos[tramos.length - 1] || "").trim().toLowerCase();
+  const yaPuestos = tramos.slice(0, -1).map((t) => t.trim().toLowerCase());
+
+  const sugerencias =
+    actual.length < 2
+      ? []
+      : contactos
+          .filter(
+            (c) =>
+              !yaPuestos.includes(c.address) &&
+              (c.address.includes(actual) ||
+                (c.name || "").toLowerCase().includes(actual))
+          )
+          .slice(0, 6);
+
+  const elegir = (c: Contact) => {
+    const partes = valor.split(",");
+    partes[partes.length - 1] = c.address;
+    onChange(partes.map((p) => p.trim()).join(", ") + ", ");
+    setAbierto(false);
+  };
+
+  return (
+    <div className="flex-1 relative">
+      <input
+        type="text"
+        value={valor}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setAbierto(true);
+        }}
+        onFocus={() => setAbierto(true)}
+        onBlur={() => setTimeout(() => setAbierto(false), 150)}
+        placeholder={placeholder}
+        className={className}
+      />
+      {abierto && sugerencias.length > 0 && (
+        <ul className="absolute left-0 right-0 top-full mt-1 z-20 bg-popover border rounded-lg shadow-lg overflow-hidden">
+          {sugerencias.map((c) => (
+            <li key={c.address}>
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => elegir(c)}
+                className="w-full text-left px-3 py-2 hover:bg-muted transition-colors"
+              >
+                <span className="block text-foreground truncate">
+                  {c.name || c.address}
+                </span>
+                {c.name && (
+                  <span className="block text-[11px] text-muted-foreground truncate">
+                    {c.address}
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 export function ComposeModal({
@@ -62,8 +190,20 @@ export function ComposeModal({
   >([]);
   const [sending, setSending] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  const [contactos, setContactos] = useState<Contact[]>([]);
 
-  // Initialize body and signature
+  // Los contactos se aprenden solos de lo que llega y de lo que se envia.
+  useEffect(() => {
+    if (!isOpen) return;
+    fetch("/api/contacts")
+      .then((r) => r.json())
+      .then((d) => setContactos(d.contacts || []))
+      .catch(() => setContactos([]));
+  }, [isOpen]);
+
+  // El modal no se desmonta al cerrarse, asi que al abrirlo hay que reiniciar
+  // TODOS los campos. Antes solo se reasignaban si venian datos, y por eso un
+  // correo nuevo heredaba el destinatario y el asunto de la respuesta anterior.
   useEffect(() => {
     if (!isOpen) return;
 
@@ -72,25 +212,23 @@ export function ComposeModal({
     const currentSig =
       signatures.find((s) => s.id === selectedSignatureId) || defaultSig;
 
-    let compiledSig = "";
-    if (currentSig && currentIdent) {
-      compiledSig = compileSignature(currentSig.htmlContent, {
-        name: currentIdent.name,
-        email: currentIdent.email,
-        company: currentIdent.organization || "Mi Empresa",
-        title: "Director de Operaciones",
-        phone: "+56 9 1234 5678",
-        website: "tudominio.com",
-        website_url: "https://tudominio.com",
-        initials: (currentIdent.name || "A").slice(0, 2).toUpperCase(),
-      });
-    }
+    const compiledSig =
+      currentSig && currentIdent
+        ? compileSignature(currentSig.htmlContent, variablesDeIdentidad(currentIdent))
+        : "";
 
     const initBody = initialData?.body || "<p></p>";
-    const sigBlock = compiledSig ? `<div data-signature="aeromail-sig"><br/><br/>${compiledSig}</div>` : "";
+    const sigBlock = compiledSig
+      ? `<div data-signature="${MARCA_FIRMA}"><br/><br/>${compiledSig}</div>`
+      : "";
+
     setBodyHtml(`${initBody}${sigBlock}`);
-    if (initialData?.to) setTo(initialData.to);
-    if (initialData?.subject) setSubject(initialData.subject);
+    setTo(initialData?.to || "");
+    setSubject(initialData?.subject || "");
+    setCc("");
+    setBcc("");
+    setShowCcBcc(false);
+    setAttachments([]);
   }, [isOpen, initialData]);
 
   if (!isOpen) return null;
@@ -101,29 +239,16 @@ export function ComposeModal({
     const currentIdent =
       identities.find((i) => i.id === selectedIdentity) || defaultIdentity;
 
-    let compiled = "";
-    if (newSig && currentIdent) {
-      compiled = compileSignature(newSig.htmlContent, {
-        name: currentIdent.name,
-        email: currentIdent.email,
-        company: currentIdent.organization || "Mi Empresa",
-        title: "Director de Operaciones",
-        phone: "+56 9 1234 5678",
-        website: "tudominio.com",
-        website_url: "https://tudominio.com",
-        initials: (currentIdent.name || "A").slice(0, 2).toUpperCase(),
-      });
-    }
+    const compiled =
+      newSig && currentIdent
+        ? compileSignature(newSig.htmlContent, variablesDeIdentidad(currentIdent))
+        : "";
 
-    const newSigBlock = compiled ? `<div data-signature="aeromail-sig"><br/><br/>${compiled}</div>` : "";
+    const newSigBlock = compiled
+      ? `<div data-signature="${MARCA_FIRMA}"><br/><br/>${compiled}</div>`
+      : "";
 
-    setBodyHtml((prev) => {
-      if (prev.includes('data-signature="aeromail-sig"')) {
-        return prev.replace(/<div data-signature="aeromail-sig">[\s\S]*?<\/div>/gi, newSigBlock);
-      } else {
-        return `${prev}${newSigBlock}`;
-      }
-    });
+    setBodyHtml((prev) => reemplazarFirma(prev, newSigBlock));
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -261,13 +386,13 @@ export function ComposeModal({
             {/* To Input */}
             <div className="px-4 py-2 flex items-center gap-2">
               <span className="text-muted-foreground w-12 font-medium">Para:</span>
-              <input
-                type="text"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                placeholder="destinatario@correo.com (separa varios con coma)"
-                className="flex-1 bg-transparent focus:outline-none text-foreground font-medium"
-              />
+                  <CampoDireccion
+                    valor={to}
+                    onChange={setTo}
+                    placeholder="destinatario@correo.com (separa varios con coma)"
+                    contactos={contactos}
+                    className="w-full bg-transparent focus:outline-none text-foreground font-medium"
+                  />
               <button
                 type="button"
                 onClick={() => setShowCcBcc(!showCcBcc)}
@@ -282,22 +407,22 @@ export function ComposeModal({
               <>
                 <div className="px-4 py-2 flex items-center gap-2">
                   <span className="text-muted-foreground w-12 font-medium">CC:</span>
-                  <input
-                    type="text"
-                    value={cc}
-                    onChange={(e) => setCc(e.target.value)}
+                  <CampoDireccion
+                    valor={cc}
+                    onChange={setCc}
                     placeholder="copia@correo.com"
-                    className="flex-1 bg-transparent focus:outline-none text-foreground"
+                    contactos={contactos}
+                    className="w-full bg-transparent focus:outline-none text-foreground"
                   />
                 </div>
                 <div className="px-4 py-2 flex items-center gap-2">
                   <span className="text-muted-foreground w-12 font-medium">CCO:</span>
-                  <input
-                    type="text"
-                    value={bcc}
-                    onChange={(e) => setBcc(e.target.value)}
+                  <CampoDireccion
+                    valor={bcc}
+                    onChange={setBcc}
                     placeholder="copia.oculta@correo.com"
-                    className="flex-1 bg-transparent focus:outline-none text-foreground"
+                    contactos={contactos}
+                    className="w-full bg-transparent focus:outline-none text-foreground"
                   />
                 </div>
               </>

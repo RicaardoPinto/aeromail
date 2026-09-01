@@ -41,7 +41,28 @@ export interface SignatureBrandingConfig {
   layout: "executive" | "modern-card" | "minimal-accent" | "horizontal-badge" | "creative-gradient";
 }
 
+/**
+ * Tipografia unificada: Calibri con Carlito como equivalente metrico en Linux
+ * y Segoe UI / Candara como respaldo en clientes que no traen ninguna de las dos.
+ */
+export const FONT_STACK =
+  "Calibri, Carlito, 'Segoe UI', Candara, 'Trebuchet MS', sans-serif";
+
+/**
+ * Paleta corporativa. Los tres tonos de texto superan 4.5:1 sobre blanco, que
+ * es el minimo para lectura comoda; los dos ultimos son solo superficie.
+ */
+export const BRAND = {
+  primary: "#5C5498",
+  ink: "#23213A",
+  muted: "#57546B",
+  soft: "#6E6B80",
+  hairline: "#E4E2EE",
+  tint: "#F5F4FA",
+};
+
 export const PRESET_COLOR_PALETTES = [
+  { name: "Corporativo LyF", primary: BRAND.primary, secondary: BRAND.muted, text: BRAND.ink },
   { name: "Azul Corporativo", primary: "#2563eb", secondary: "#64748b", text: "#0f172a" },
   { name: "Grafito & Pizarra", primary: "#334155", secondary: "#64748b", text: "#0f172a" },
   { name: "Esmeralda Sutil", primary: "#059669", secondary: "#64748b", text: "#064e3b" },
@@ -66,9 +87,9 @@ export const DEFAULT_BRANDING_CONFIG: SignatureBrandingConfig = {
   logoUrl: "",
   logoShape: "circle",
   logoSize: 38,
-  primaryColor: "#2563eb",
-  secondaryColor: "#64748b",
-  textColor: "#1e293b",
+  primaryColor: BRAND.primary,
+  secondaryColor: BRAND.muted,
+  textColor: BRAND.ink,
   fontScale: "subtle",
 
   linkedin: "https://linkedin.com",
@@ -80,7 +101,7 @@ export const DEFAULT_BRANDING_CONFIG: SignatureBrandingConfig = {
   disclaimerText:
     "Este mensaje es confidencial y para uso exclusivo del destinatario.",
   showEcoNote: false,
-  ecoNoteText: "🌱 Por favor considera el medio ambiente antes de imprimir este correo.",
+  ecoNoteText: "Por favor considera el medio ambiente antes de imprimir este correo.",
   layout: "executive",
 };
 
@@ -200,14 +221,14 @@ function renderLogoOrAvatar(config: SignatureBrandingConfig): string {
  * Generates email-ready cross-client HTML for any chosen layout
  */
 export function generateProfessionalSignatureHtml(config: SignatureBrandingConfig): string {
-  const fontStack = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  const fontStack = FONT_STACK;
   const typo = getTypographyScale(config.fontScale || "subtle");
   const logoHtml = renderLogoOrAvatar(config);
   const socialHtml = renderSocialIcons(config);
 
   const disclaimerHtml = config.showDisclaimer && config.disclaimerText
     ? `
-    <div style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed #e2e8f0; font-size: ${typo.disclaimer}; line-height: 1.3; color: #94a3b8; font-style: italic; font-family: ${fontStack};">
+    <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid ${BRAND.hairline}; font-size: ${typo.disclaimer}; line-height: 1.3; color: ${BRAND.soft}; font-style: italic; font-family: ${fontStack};">
       ${config.disclaimerText}
     </div>
   `

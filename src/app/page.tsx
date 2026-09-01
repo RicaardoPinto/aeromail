@@ -443,6 +443,21 @@ export default function WebmailPage() {
           signatures={signatures}
           identities={identities}
           onSignaturesUpdated={(updated) => setSignatures(updated)}
+          onIdentityUpdated={async (ident) => {
+            setIdentities((prev) => [
+              ident,
+              ...prev.filter((i) => i.id !== ident.id).map((i) => ({ ...i, isDefault: false })),
+            ]);
+            // Las firmas automaticas se rehacen en el servidor al guardar la
+            // identidad, asi que hay que releerlas para ver los datos nuevos.
+            try {
+              const res = await fetch("/api/signatures");
+              const data = await res.json();
+              if (data.signatures) setSignatures(data.signatures);
+            } catch (err) {
+              console.error(err);
+            }
+          }}
           onClose={() => setShowSignatures(false)}
         />
       )}

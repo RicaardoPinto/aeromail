@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 interface SignatureManagerProps {
   signatures: Signature[];
   identities: Identity[];
+  onIdentityUpdated?: (identity: Identity) => void;
   onSignaturesUpdated: (signatures: Signature[]) => void;
   onClose: () => void;
 }
@@ -40,6 +41,7 @@ interface SignatureManagerProps {
 export function SignatureManager({
   signatures,
   identities,
+  onIdentityUpdated,
   onSignaturesUpdated,
   onClose,
 }: SignatureManagerProps) {
@@ -126,9 +128,41 @@ export function SignatureManager({
       name: currentItem?.name || `Firma Corporativa ${branding.layout}`,
       htmlContent: finalHtml,
       isDefault: currentItem?.isDefault ?? true,
+      // Al guardarla a mano deja de ser una plantilla automatica, para que un
+      // cambio posterior en la identidad no sobrescriba lo que acabas de editar.
+      generated: false,
     };
 
     try {
+      // El nombre que ve el destinatario sale de la identidad, no de la firma.
+      // Sin este guardado el correo seguia saliendo como "contacto" por mucho
+      // que la firma dijera otra cosa. Va primero para que la firma mande.
+      const identidad: Partial<Identity> = {
+        id: primaryIdentity.id,
+        name: branding.name,
+        email: branding.email || primaryIdentity.email,
+        organization: branding.company,
+        title: branding.title,
+        phone: branding.phone,
+        mobile: branding.mobile,
+        website: branding.website,
+        websiteUrl: branding.websiteUrl,
+        address: branding.address,
+        logoUrl: branding.logoUrl,
+        brandColor: branding.primaryColor,
+        isDefault: true,
+      };
+
+      if (identidad.name && identidad.email) {
+        const resIdent = await fetch("/api/identities", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(identidad),
+        });
+        const dataIdent = await resIdent.json();
+        if (dataIdent.identity) onIdentityUpdated?.(dataIdent.identity);
+      }
+
       const res = await fetch("/api/signatures", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

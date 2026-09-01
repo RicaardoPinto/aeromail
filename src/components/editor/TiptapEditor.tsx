@@ -6,6 +6,11 @@ import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import TextStyle from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
+import Table from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
+import { FONT_STACK } from "@/lib/signature-generator";
 import {
   Bold,
   Italic,
@@ -13,6 +18,7 @@ import {
   List,
   ListOrdered,
   Link as LinkIcon,
+  Table as TableIcon,
   Heading1,
   Heading2,
   Undo,
@@ -51,13 +57,21 @@ export function TiptapEditor({
       }),
       TextStyle,
       Color,
+      // Las tablas se estilizan al enviar (email-format.ts): aqui solo se
+      // necesita poder crearlas y editarlas.
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
     ],
     content: value,
     editorProps: {
       attributes: {
         class:
           "prose prose-sm dark:prose-invert max-w-none focus:outline-none p-3 tiptap-content",
-        style: `min-height: ${minHeight};`,
+        // La misma tipografia e interlineado con que saldra el correo, para
+        // que lo que se escribe se parezca a lo que recibe el destinatario.
+        style: `min-height: ${minHeight}; font-family: ${FONT_STACK}; font-size: 14px; line-height: 1.4;`,
       },
     },
     onUpdate: ({ editor }) => {
@@ -124,6 +138,21 @@ export function TiptapEditor({
           title="Tachado"
         >
           <Strikethrough className="w-4 h-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            editor
+              .chain()
+              .focus()
+              .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+              .run()
+          }
+          className="p-1.5 rounded hover:bg-muted hover:text-foreground transition-colors"
+          title="Insertar tabla"
+        >
+          <TableIcon className="w-4 h-4" />
         </button>
 
         <div className="w-[1px] h-4 bg-border mx-1" />

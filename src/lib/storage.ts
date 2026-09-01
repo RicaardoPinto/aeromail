@@ -1,9 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import { Identity, Signature, UserPreferences } from "./types";
+import { Contact, Identity, Signature, UserPreferences } from "./types";
 import {
   generateProfessionalSignatureHtml,
   DEFAULT_BRANDING_CONFIG,
+  FONT_STACK,
   SignatureBrandingConfig,
 } from "./signature-generator";
 
@@ -19,20 +20,37 @@ interface UserDataStore {
   identities: Identity[];
   signatures: Signature[];
   preferences: UserPreferences;
+  /** Direcciones vistas en el buzon, para autocompletar destinatarios */
+  contacts?: Contact[];
 }
 
 export function getDefaultSignaturesForUser(
   userId: string,
   userName?: string,
   userEmail?: string,
-  userOrg?: string
+  userOrg?: string,
+  identidad?: Partial<Identity>
 ): Signature[] {
+  // Los datos salen de la identidad. Lo que no este definido se omite en vez
+  // de rellenarse con un ejemplo: una firma con un telefono falso es peor que
+  // una firma sin telefono.
   const baseConfig: SignatureBrandingConfig = {
     ...DEFAULT_BRANDING_CONFIG,
-    name: userName || "Alex Rivera",
-    email: userEmail || "usuario@tudominio.com",
-    company: userOrg || "Mi Empresa",
-    title: "Director de Operaciones",
+    name: identidad?.name || userName || "",
+    email: identidad?.email || userEmail || "",
+    company: identidad?.organization || userOrg || "",
+    title: identidad?.title || "",
+    phone: identidad?.phone || "",
+    mobile: identidad?.mobile || "",
+    website: identidad?.website || "",
+    websiteUrl: identidad?.websiteUrl || identidad?.website || "",
+    address: identidad?.address || "",
+    logoUrl: identidad?.logoUrl || "",
+    primaryColor: identidad?.brandColor || DEFAULT_BRANDING_CONFIG.primaryColor,
+    linkedin: "",
+    twitter: "",
+    github: "",
+    whatsapp: "",
   };
 
   const templates: {
@@ -83,6 +101,7 @@ export function getDefaultSignaturesForUser(
       layout: item.layout,
     }),
     isDefault: item.isDefault,
+    generated: true,
     createdAt: now,
     updatedAt: now,
   }));
@@ -156,7 +175,11 @@ export function getUserData(
       blockRemoteImages: true,
       defaultSignatureId: defaultSignatures[0]?.id || "sig_1",
       autoSaveDraftInterval: 30,
+      composeFontFamily: FONT_STACK,
+      composeFontSize: 14,
+      composeLineHeight: 1.4,
     },
+    contacts: [],
   };
 
   saveUserData(userId, initialStore);
@@ -299,6 +322,28 @@ export function saveIdentity(
     store.identities.forEach((i) => {
       if (i.id !== target.id) i.isDefault = false;
     });
+
+    // Las firmas guardan HTML con los datos ya incrustados, asi que cambiar la
+    // identidad no bastaria: hay que rehacerlas. Solo las generadas por la app;
+    // las que el usuario haya editado se respetan.
+    const regeneradas = getDefaultSignaturesForUser(
+      userId,
+      target.name,
+      target.email,
+      target.organization,
+      target
+    );
+    const porId = new Map(regeneradas.map((f) => [f.id, f]));
+    store.signatures = store.signatures.map((firma) => {
+      if (!firma.generated) return firma;
+      const nueva = porId.get(firma.id);
+      if (!nueva) return firma;
+      return {
+        ...firma,
+        htmlContent: nueva.htmlContent,
+        updatedAt: new Date().toISOString(),
+      };
+    });
   }
 
   saveUserData(userId, store);
@@ -336,6 +381,70 @@ export function saveUserPreferences(
   };
   saveUserData(userId, store);
   return store.preferences;
+}
+
+const MAX_CONTACTOS = 500;
+
+/**
+ * Devuelve los contactos ordenados por uso reciente y frecuencia, que es el
+ * orden en que una persona espera verlos al autocompletar.
+ */
+export function getContacts(userId: string): Contact[] {
+  const store = getUserData(userId);
+  const contactos = store.contacts || [];
+  return [...contactos].sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return b.lastSeen.localeCompare(a.lastSeen);
+  });
+}
+
+/**
+ * Registra direcciones vistas o usadas. Se acumula el contador para que las
+ * habituales suban solas, y se conserva el nombre mas informativo conocido.
+ */
+export function recordContacts(
+  userId: string,
+  entradas: { address: string; name?: string }[]
+): Contact[] {
+  if (entradas.length === 0) return getContacts(userId);
+
+  const store = getUserData(userId);
+  const contactos = store.contacts || [];
+  const indice = new Map(contactos.map((c) => [c.address.toLowerCase(), c]));
+  const ahora = new Date().toISOString();
+
+  for (const entrada of entradas) {
+    const direccion = (entrada.address || "").trim().toLowerCase();
+    if (!direccion || !direccion.includes("@")) continue;
+
+    const existente = indice.get(direccion);
+    if (existente) {
+      existente.count += 1;
+      existente.lastSeen = ahora;
+      // Un nombre real vale mas que la direccion repetida como nombre.
+      if (entrada.name && entrada.name !== existente.name && entrada.name !== direccion) {
+        existente.name = entrada.name;
+      }
+    } else {
+      const nuevo: Contact = {
+        address: direccion,
+        name: entrada.name && entrada.name !== direccion ? entrada.name : undefined,
+        lastSeen: ahora,
+        count: 1,
+      };
+      indice.set(direccion, nuevo);
+    }
+  }
+
+  // Se poda por uso, no por antiguedad: perder un contacto frecuente molesta
+  // mas que conservar uno visto una vez.
+  const actualizados = [...indice.values()]
+    .sort((a, b) => (b.count !== a.count ? b.count - a.count : b.lastSeen.localeCompare(a.lastSeen)))
+    .slice(0, MAX_CONTACTOS);
+
+  store.contacts = actualizados;
+  saveUserData(userId, store);
+  return actualizados;
 }
 
 export const getPreferences = getUserPreferences;

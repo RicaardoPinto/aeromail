@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthSession, unauthorizedResponse } from "@/lib/auth-helper";
 import { sendEmail } from "@/lib/smtp";
 import { appendToSpecialFolder } from "@/lib/imap";
+import { getUserPreferences, recordContacts } from "@/lib/storage";
+import { prepararHtmlDeCorreo } from "@/lib/email-format";
 import { SendMailPayload } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -22,8 +24,18 @@ export async function POST(req: NextRequest) {
     const fromAddress =
       payload.from || `"${session.name}" <${session.email}>`;
 
+    // Los clientes de correo ignoran las hojas de estilo, asi que el HTML se
+    // prepara con estilos en linea antes de salir (ver email-format.ts).
+    const prefs = getUserPreferences(session.userId);
+    const htmlListo = prepararHtmlDeCorreo(payload.html, {
+      fontFamily: prefs.composeFontFamily,
+      fontSize: prefs.composeFontSize,
+      lineHeight: prefs.composeLineHeight,
+    });
+
     const result = await sendEmail(session.account.smtp, {
       ...payload,
+      html: htmlListo,
       from: fromAddress,
     });
 
@@ -41,6 +53,18 @@ export async function POST(req: NextRequest) {
     } catch (err: any) {
       saveError = err.message || "No se pudo archivar la copia en Enviados";
       console.error("Error saving message to Sent folder:", err);
+    }
+
+    // A quien escribes es la senal mas fuerte de que es un contacto tuyo.
+    try {
+      recordContacts(
+        session.userId,
+        [...payload.to, ...(payload.cc || []), ...(payload.bcc || [])].map(
+          (address) => ({ address })
+        )
+      );
+    } catch (err) {
+      console.error("No se pudieron registrar los contactos:", err);
     }
 
     return NextResponse.json({
