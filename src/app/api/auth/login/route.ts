@@ -90,31 +90,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    /*
-      El modo demostracion se salta la verificacion de credenciales, asi que
-      solo existe si se habilita a proposito y nunca en produccion.
-
-      Antes bastaba con escribir "demo" como contrasena de CUALQUIER direccion
-      real para obtener una sesion valida a nombre de esa cuenta, con acceso a
-      sus firmas, identidades y preferencias guardadas.
-    */
-    const demoHabilitado =
-      process.env.DEMO_MODE === "true" && process.env.NODE_ENV !== "production";
-    const isDemo =
-      demoHabilitado && email.toLowerCase().trim().endsWith("@demo.local");
-
-    if (!isDemo) {
-      // Test real IMAP connection
-      const imapOk = await testImapConnection(imapConfig);
-      if (!imapOk) {
-        return NextResponse.json(
-          {
-            error:
-              "No se pudo conectar al servidor IMAP. Verifica el servidor, puerto, usuario o contraseña.",
-          },
-          { status: 401 }
-        );
-      }
+    // Test real IMAP connection
+    const imapOk = await testImapConnection(imapConfig);
+    if (!imapOk) {
+      return NextResponse.json(
+        {
+          error:
+            "No se pudo conectar al servidor IMAP. Verifica el servidor, puerto, usuario o contraseña.",
+        },
+        { status: 401 }
+      );
     }
 
     const userId = email.toLowerCase().trim();

@@ -1,4 +1,4 @@
-import { ImapFlow } from "imapflow";
+import { ImapFlow, SearchObject } from "imapflow";
 import { simpleParser, ParsedMail } from "mailparser";
 import { verificarCertificadoTls } from "./tls";
 import {
@@ -147,11 +147,11 @@ export async function fetchMessageList(
       }
 
       // Calculate range from latest to oldest
-      let searchRange: any = "1:*";
+      let searchCriteria: SearchObject = { all: true };
 
       if (searchQuery && searchQuery.trim()) {
         const q = searchQuery.trim();
-        searchRange = {
+        searchCriteria = {
           or: [
             { subject: q },
             { from: q },
@@ -161,8 +161,8 @@ export async function fetchMessageList(
         };
       }
 
-      // Fetch sequence IDs
-      const searchResults = await client.search(searchRange, { uid: true });
+      // Search returns UIDs because of the uid option below
+      const searchResults = await client.search(searchCriteria, { uid: true });
       const uids = Array.isArray(searchResults) ? searchResults : [];
       total = uids.length;
 
@@ -181,7 +181,7 @@ export async function fetchMessageList(
         flags: true,
         size: true,
         bodyStructure: true,
-      })) {
+      }, { uid: true })) {
         const env = msg.envelope;
         const flags = Array.from(msg.flags || []);
 

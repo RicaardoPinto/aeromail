@@ -9,7 +9,6 @@ import {
   ChevronDown,
   ChevronUp,
   LogIn,
-  Sparkles,
   AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -210,40 +209,6 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
             {loading ? "Conectando con tu buzón..." : "Iniciar Sesión"}
           </button>
         </form>
-
-        {/* Demo Test Account Card */}
-        <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-primary flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" /> Cuenta de Prueba (Demo)
-            </span>
-            <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
-              Listo para testear
-            </span>
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Prueba todas las funciones (firmas, bandeja, redactor) sin necesidad de conectar tu IMAP todavía.
-          </p>
-          <div className="bg-background/80 p-2 rounded-lg text-[11px] font-mono text-muted-foreground flex justify-between">
-            <span>Usuario: <strong className="text-foreground">demo@tudominio.com</strong></span>
-            <span>Clave: <strong className="text-foreground">demo</strong></span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setEmail("demo@tudominio.com");
-              setPassword("demo");
-              setTimeout(() => {
-                const form = document.querySelector("form");
-                form?.requestSubmit();
-              }, 100);
-            }}
-            className="w-full py-2 rounded-xl bg-background border hover:bg-muted font-semibold text-xs text-foreground transition-all flex items-center justify-center gap-1.5 shadow-sm"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
-            Entrar con Cuenta Demo en 1 Clic
-          </button>
-        </div>
 
         {/* Security badge footer */}
         <div className="pt-2 border-t text-center text-[11px] text-muted-foreground flex items-center justify-center gap-1.5">

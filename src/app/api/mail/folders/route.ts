@@ -6,11 +6,6 @@ export async function GET() {
   const session = await getAuthSession();
   if (!session) return unauthorizedResponse();
 
-  if (session.userId.toLowerCase().includes("demo") || session.email.toLowerCase().includes("demo")) {
-    const { DEMO_FOLDERS } = await import("@/lib/demo-data");
-    return NextResponse.json({ folders: DEMO_FOLDERS });
-  }
-
   try {
     const folders = await getMailboxes(session.account.imap);
     return NextResponse.json({ folders });

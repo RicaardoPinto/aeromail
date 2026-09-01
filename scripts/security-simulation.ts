@@ -149,31 +149,31 @@ async function runSecurityAudit() {
 
   console.log("  1. Usuario inicia sesión con credenciales");
   const userToken = await createSessionToken({
-    userId: "demo@tudominio.com",
-    email: "demo@tudominio.com",
-    name: "Alex Rivera",
+    userId: "auditoria@ejemplo.local",
+    email: "auditoria@ejemplo.local",
+    name: "Usuario de Auditoria",
     account: {
-      imap: { host: "mail.tudominio.com", port: 993, secure: true, auth: { user: "demo", pass: "demo" } },
-      smtp: { host: "mail.tudominio.com", port: 465, secure: true, auth: { user: "demo", pass: "demo" } },
+      imap: { host: "mail.ejemplo.local", port: 993, secure: true, auth: { user: "auditoria", pass: "clave-de-prueba" } },
+      smtp: { host: "mail.ejemplo.local", port: 465, secure: true, auth: { user: "auditoria", pass: "clave-de-prueba" } },
     },
   });
   assert(!!userToken, "Paso 1: Autenticación y emisión de cookie de sesión exitosa");
 
-  console.log("  2. Consulta de buzón y obtención de lista de mensajes");
-  const { DEMO_FOLDERS, DEMO_MESSAGES } = await import("../src/lib/demo-data");
-  assert(DEMO_FOLDERS.length >= 5, "Paso 2: Obtención de buzones (Inbox, Sent, Trash, etc.)");
-  assert(DEMO_MESSAGES["INBOX"].length >= 3, "Paso 3: Obtención de mensajes con banderas y fechas");
+  console.log("  2. Renderizado seguro de un mensaje con contenido hostil");
+  const cuerpoDeEjemplo =
+    '<p>Adjunto el informe acordado.</p><img src="https://rastreador.ejemplo.net/pixel.gif"><script>alert(1)</script>';
+  const renderedMsg = sanitizeEmailHtml(cuerpoDeEjemplo);
+  assert(
+    renderedMsg.sanitizedHtml.length > 0 && !renderedMsg.sanitizedHtml.includes("<script"),
+    "Paso 2: Renderizado seguro y aislado del cuerpo del correo"
+  );
+  assert(renderedMsg.hasRemoteImages, "Paso 3: Deteccion de imagenes remotas para su bloqueo");
 
-  console.log("  3. Lectura de mensaje con adjunto y protección de imágenes");
-  const sampleMsg = DEMO_MESSAGES["INBOX"][0];
-  const renderedMsg = sanitizeEmailHtml(sampleMsg.htmlBody || "");
-  assert(renderedMsg.sanitizedHtml.length > 0, "Paso 4: Renderizado seguro y aislado del cuerpo del correo");
-
-  console.log("  4. Composición de correo y adjunción de firma");
-  const userSignatures = getSignatures("demo@tudominio.com");
+  console.log("  3. Composición de correo y adjunción de firma");
+  const userSignatures = getSignatures("audit_user");
   const defaultSignature = userSignatures.find((s) => s.isDefault) || userSignatures[0];
   const finalEmailBody = `<p>Hola, adjunto el informe acordado.</p><br/><br/>${defaultSignature.htmlContent}`;
-  assert(finalEmailBody.includes("informe acordado") && finalEmailBody.includes(defaultSignature.htmlContent), "Paso 5: Ensamblado de correo con firma enriquecida lista para despacho SMTP");
+  assert(finalEmailBody.includes("informe acordado") && finalEmailBody.includes(defaultSignature.htmlContent), "Paso 4: Ensamblado de correo con firma enriquecida lista para despacho SMTP");
 
   // ----------------------------------------------------
   // RESUMEN FINAL

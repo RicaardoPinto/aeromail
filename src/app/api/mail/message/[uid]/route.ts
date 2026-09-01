@@ -20,27 +20,6 @@ export async function GET(
   const folder = searchParams.get("folder") || "INBOX";
   const allowRemoteImages = searchParams.get("allowRemoteImages") === "1";
 
-  if (session.userId.toLowerCase().includes("demo") || session.email.toLowerCase().includes("demo")) {
-    const { DEMO_MESSAGES } = await import("@/lib/demo-data");
-    const { sanitizeEmailHtml } = await import("@/lib/sanitizer");
-    const found = (DEMO_MESSAGES[folder] || []).find((m) => m.uid === uidNum);
-    if (!found) {
-      return NextResponse.json({ error: "Mensaje no encontrado" }, { status: 404 });
-    }
-    const { sanitizedHtml, hasRemoteImages } = sanitizeEmailHtml(
-      found.htmlBody || "",
-      allowRemoteImages
-    );
-    return NextResponse.json({
-      message: {
-        ...found,
-        sanitizedHtml,
-        hasRemoteImages,
-        unread: false,
-      },
-    });
-  }
-
   try {
     const message = await fetchFullMessage(
       session.account.imap,

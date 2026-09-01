@@ -12,22 +12,6 @@ export async function GET(req: NextRequest) {
   const pageSize = parseInt(searchParams.get("pageSize") || "50", 10);
   const query = searchParams.get("q") || undefined;
 
-  if (session.userId.toLowerCase().includes("demo") || session.email.toLowerCase().includes("demo")) {
-    const { DEMO_MESSAGES } = await import("@/lib/demo-data");
-    const msgs = DEMO_MESSAGES[folder] || [];
-    let filtered = msgs;
-    if (query) {
-      const q = query.toLowerCase();
-      filtered = msgs.filter(
-        (m) =>
-          m.subject.toLowerCase().includes(q) ||
-          m.from.name.toLowerCase().includes(q) ||
-          m.from.address.toLowerCase().includes(q)
-      );
-    }
-    return NextResponse.json({ messages: filtered, total: filtered.length });
-  }
-
   try {
     const result = await fetchMessageList(
       session.account.imap,

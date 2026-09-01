@@ -21,13 +21,6 @@ export async function POST(req: NextRequest) {
     const fromAddress =
       payload.from || `"${session.name}" <${session.email}>`;
 
-    if (session.userId.toLowerCase().includes("demo") || session.email.toLowerCase().includes("demo")) {
-      return NextResponse.json({
-        success: true,
-        messageId: `<demo-sent-${Date.now()}@tudominio.com>`,
-      });
-    }
-
     const result = await sendEmail(session.account.smtp, {
       ...payload,
       from: fromAddress,

@@ -119,7 +119,6 @@ Otras decisiones que conviene conocer antes de desplegar:
 
 | Ajuste | Comportamiento |
 |---|---|
-| Modo demostracion | Se salta la verificacion de credenciales. Requiere `DEMO_MODE=true`, queda inhabilitado con `NODE_ENV=production` y solo acepta direcciones `@demo.local` |
 | Sesion | 24 horas, cookie `httpOnly`, `secure` y `sameSite=strict` |
 | Limite de intentos | Por IP (5 cada 5 min) y por cuenta (10 cada 15 min). La IP se toma del final de `x-forwarded-for`, que es la que pone el proxy |
 | CSRF | Comparacion exacta del host de `Origin`. Una peticion que modifica estado sin esa cabecera se rechaza |
