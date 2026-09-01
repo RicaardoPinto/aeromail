@@ -62,11 +62,22 @@ export function SignatureManager({
   >("layouts");
 
   // Current Branding state
+  // Se cargan TODOS los campos guardados, no solo nombre, correo y empresa.
+  // Al leer solo tres, el resto arrancaba con los valores de ejemplo y se
+  // reescribian encima de los reales cada vez que se guardaba.
   const [branding, setBranding] = useState<SignatureBrandingConfig>({
     ...DEFAULT_BRANDING_CONFIG,
-    name: primaryIdentity.name || DEFAULT_BRANDING_CONFIG.name,
-    email: primaryIdentity.email || DEFAULT_BRANDING_CONFIG.email,
-    company: primaryIdentity.organization || DEFAULT_BRANDING_CONFIG.company,
+    name: primaryIdentity.name || "",
+    email: primaryIdentity.email || "",
+    company: primaryIdentity.organization || "",
+    title: primaryIdentity.title || "",
+    phone: primaryIdentity.phone || "",
+    mobile: primaryIdentity.mobile || "",
+    website: primaryIdentity.website || "",
+    websiteUrl: primaryIdentity.websiteUrl || primaryIdentity.website || "",
+    address: primaryIdentity.address || "",
+    logoUrl: primaryIdentity.logoUrl || "",
+    primaryColor: primaryIdentity.brandColor || DEFAULT_BRANDING_CONFIG.primaryColor,
   });
 
   const [previewTheme, setPreviewTheme] = useState<"light" | "dark">("light");

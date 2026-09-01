@@ -72,17 +72,25 @@ export const PRESET_COLOR_PALETTES = [
   { name: "Carmesí Clásico", primary: "#b91c1c", secondary: "#71717a", text: "#18181b" },
 ];
 
+/**
+ * Los campos personales van VACIOS a proposito.
+ *
+ * Antes traian un ejemplo ("Director de Operaciones", "tudominio.com", un
+ * telefono inventado) y el estudio arrancaba desde ahi, asi que esos valores
+ * acababan guardados en la identidad y saliendo en correos reales. Un campo en
+ * blanco simplemente no se dibuja; uno con un ejemplo miente.
+ */
 export const DEFAULT_BRANDING_CONFIG: SignatureBrandingConfig = {
-  name: "Alex Rivera",
-  title: "Director de Operaciones",
-  department: "Tecnología & Producto",
-  company: "Mi Empresa",
-  email: "alex@tudominio.com",
-  phone: "+56 9 1234 5678",
-  mobile: "+56 2 2987 6543",
-  website: "tudominio.com",
-  websiteUrl: "https://tudominio.com",
-  address: "Av. Providencia 1200, Santiago",
+  name: "",
+  title: "",
+  department: "",
+  company: "",
+  email: "",
+  phone: "",
+  mobile: "",
+  website: "",
+  websiteUrl: "",
+  address: "",
 
   logoUrl: "",
   logoShape: "circle",
@@ -92,10 +100,12 @@ export const DEFAULT_BRANDING_CONFIG: SignatureBrandingConfig = {
   textColor: BRAND.ink,
   fontScale: "subtle",
 
-  linkedin: "https://linkedin.com",
-  twitter: "https://x.com",
-  github: "https://github.com",
-  whatsapp: "https://wa.me/56912345678",
+  // Vacias: si no las rellenas, no aparecen insignias sueltas apuntando a
+  // paginas que no son tuyas.
+  linkedin: "",
+  twitter: "",
+  github: "",
+  whatsapp: "",
 
   showDisclaimer: true,
   disclaimerText:
