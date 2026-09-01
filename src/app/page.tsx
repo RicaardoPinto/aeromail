@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   MailboxFolder,
   EmailSummary,
@@ -100,6 +100,13 @@ export default function WebmailPage() {
   }, []);
 
   // Fetch messages in selected folder
+  // selectedUid se lee por referencia para que NO entre en las dependencias de
+  // loadMessages. Estando dentro, cada clic en un mensaje cambiaba la identidad
+  // de la funcion, relanzaba el efecto de carga y repetia la conexion IMAP, la
+  // busqueda completa y la reescritura del fichero de contactos.
+  const uidRef = useRef<number | null>(selectedUid);
+  uidRef.current = selectedUid;
+
   const loadMessages = useCallback(
     async (folderPath: string, query?: string) => {
       setIsLoadingMessages(true);
@@ -113,7 +120,7 @@ export default function WebmailPage() {
           const data = await res.json();
           setMessages(data.messages || []);
           // Auto select first message if available
-          if (data.messages?.length > 0 && !selectedUid) {
+          if (data.messages?.length > 0 && !uidRef.current) {
             setSelectedUid(data.messages[0].uid);
           } else if (data.messages?.length === 0) {
             setSelectedUid(null);
@@ -126,7 +133,7 @@ export default function WebmailPage() {
         setIsLoadingMessages(false);
       }
     },
-    [selectedUid]
+    []
   );
 
   // Fetch full message when selectedUid changes
@@ -173,13 +180,15 @@ export default function WebmailPage() {
   // Global keyboard shortcuts (C for compose, Escape to close, / to search)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (
+      const escribiendo =
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
-        (e.target as HTMLElement).isContentEditable
-      ) {
-        return;
-      }
+        (e.target as HTMLElement).isContentEditable;
+
+      // Escape debe funcionar tambien desde un campo: escribiendo en "Para:" no
+      // hacia nada, ni cerrar la lista de sugerencias ni el redactor. Los demas
+      // atajos son letras sueltas y ahi si hay que respetar lo que se escribe.
+      if (escribiendo && e.key !== "Escape") return;
 
       if (e.key.toLowerCase() === "c" && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
@@ -321,7 +330,9 @@ export default function WebmailPage() {
       currentMessage.from.name || currentMessage.from.address
     } escribió:`;
 
-    const quotedBody = `<blockquote>${currentMessage.htmlBody || currentMessage.textBody}</blockquote>`;
+    // sanitizedHtml es la version ya filtrada; htmlBody es el HTML crudo del
+    // correo entrante y no debe reenviarse a terceros sin pasar por el filtro.
+    const quotedBody = `<blockquote>${currentMessage.sanitizedHtml || currentMessage.textBody || ""}</blockquote>`;
 
     setComposeInitialData({
       to,

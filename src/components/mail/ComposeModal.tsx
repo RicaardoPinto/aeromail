@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Contact, Identity, Signature, SendMailPayload } from "@/lib/types";
 import { TiptapEditor } from "../editor/TiptapEditor";
 import { compileSignature } from "@/lib/sanitizer";
@@ -81,6 +81,8 @@ function reemplazarFirma(html: string, bloqueNuevo: string): string {
  * Filtra por el ultimo tramo separado por coma, no por todo el contenido,
  * para que siga funcionando cuando ya hay varios destinatarios escritos.
  */
+let contadorDeCampos = 0;
+
 function CampoDireccion({
   valor,
   onChange,
@@ -95,6 +97,9 @@ function CampoDireccion({
   className: string;
 }) {
   const [abierto, setAbierto] = useState(false);
+  const [activo, setActivo] = useState(-1);
+  const contenedor = useRef<HTMLDivElement>(null);
+  const idLista = useRef("sug-" + ++contadorDeCampos).current;
 
   const tramos = valor.split(",");
   const actual = (tramos[tramos.length - 1] || "").trim().toLowerCase();
@@ -117,31 +122,76 @@ function CampoDireccion({
     partes[partes.length - 1] = c.address;
     onChange(partes.map((p) => p.trim()).join(", ") + ", ");
     setAbierto(false);
+    setActivo(-1);
+  };
+
+  const alPulsarTecla = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!abierto || sugerencias.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActivo((i) => (i + 1) % sugerencias.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActivo((i) => (i - 1 + sugerencias.length) % sugerencias.length);
+    } else if (e.key === "Enter" && activo >= 0) {
+      e.preventDefault();
+      elegir(sugerencias[activo]);
+    } else if (e.key === "Escape") {
+      // Se detiene aqui para que Escape cierre la lista y no el redactor entero.
+      e.stopPropagation();
+      setAbierto(false);
+      setActivo(-1);
+    }
   };
 
   return (
-    <div className="flex-1 relative">
+    <div
+      className="flex-1 relative"
+      ref={contenedor}
+      // Se cierra solo cuando el foco sale del conjunto. Con un temporizador,
+      // tabular a una sugerencia la hacia desaparecer bajo el propio foco.
+      onBlur={(e) => {
+        if (!contenedor.current?.contains(e.relatedTarget as Node)) {
+          setAbierto(false);
+          setActivo(-1);
+        }
+      }}
+    >
       <input
         type="text"
+        role="combobox"
+        aria-expanded={abierto && sugerencias.length > 0}
+        aria-controls={idLista}
+        aria-autocomplete="list"
+        aria-activedescendant={activo >= 0 ? idLista + "-" + activo : undefined}
         value={valor}
         onChange={(e) => {
           onChange(e.target.value);
           setAbierto(true);
+          setActivo(-1);
         }}
         onFocus={() => setAbierto(true)}
-        onBlur={() => setTimeout(() => setAbierto(false), 150)}
+        onKeyDown={alPulsarTecla}
         placeholder={placeholder}
         className={className}
       />
       {abierto && sugerencias.length > 0 && (
-        <ul className="absolute left-0 right-0 top-full mt-1 z-20 bg-popover border rounded-lg shadow-lg overflow-hidden">
-          {sugerencias.map((c) => (
-            <li key={c.address}>
+        <ul
+          id={idLista}
+          role="listbox"
+          className="absolute left-0 right-0 top-full mt-1 z-20 bg-popover border rounded-lg shadow-lg overflow-hidden"
+        >
+          {sugerencias.map((c, i) => (
+            <li key={c.address} id={idLista + "-" + i} role="option" aria-selected={i === activo}>
               <button
                 type="button"
+                tabIndex={-1}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => elegir(c)}
-                className="w-full text-left px-3 py-2 hover:bg-muted transition-colors"
+                className={cn(
+                  "w-full text-left px-3 py-2 transition-colors",
+                  i === activo ? "bg-muted" : "hover:bg-muted"
+                )}
               >
                 <span className="block text-foreground truncate">
                   {c.name || c.address}
@@ -316,6 +366,15 @@ export function ComposeModal({
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Error al enviar correo");
+      }
+
+      // El correo ya salio. Si no se pudo archivar la copia hay que decirlo:
+      // de lo contrario la carpeta Enviados queda vacia sin explicacion.
+      if (!data.savedTo) {
+        alert(
+          "El correo se envió correctamente, pero no se pudo guardar una copia en Enviados." +
+            (data.saveError ? " Motivo: " + data.saveError : "")
+        );
       }
 
       onClose();

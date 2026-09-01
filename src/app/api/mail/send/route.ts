@@ -3,7 +3,7 @@ import { getAuthSession, unauthorizedResponse } from "@/lib/auth-helper";
 import { sendEmail } from "@/lib/smtp";
 import { appendToSpecialFolder } from "@/lib/imap";
 import { getUserPreferences, recordContacts } from "@/lib/storage";
-import { prepararHtmlDeCorreo } from "@/lib/email-format";
+import { prepararHtmlDeCorreo, textoPlanoDesdeHtml } from "@/lib/email-format";
 import { SendMailPayload } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
@@ -36,6 +36,10 @@ export async function POST(req: NextRequest) {
     const result = await sendEmail(session.account.smtp, {
       ...payload,
       html: htmlListo,
+      // Un correo solo-HTML es una de las senales que mas pesan en los filtros
+      // de spam. Enviar tambien la parte de texto evita que los correos de la
+      // casa acaben en no deseados.
+      text: payload.text || textoPlanoDesdeHtml(htmlListo),
       from: fromAddress,
     });
 
@@ -53,6 +57,12 @@ export async function POST(req: NextRequest) {
     } catch (err: any) {
       saveError = err.message || "No se pudo archivar la copia en Enviados";
       console.error("Error saving message to Sent folder:", err);
+    }
+
+    // Sin carpeta reconocible no hay error, pero tampoco copia: hay que decirlo
+    // o el usuario da por hecho que se guardo y la carpeta sigue vacia.
+    if (!savedTo && !saveError) {
+      saveError = "La cuenta no tiene una carpeta de Enviados reconocible";
     }
 
     // A quien escribes es la senal mas fuerte de que es un contacto tuyo.

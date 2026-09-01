@@ -163,6 +163,12 @@ export async function fetchMessageList(
 
       // Search returns UIDs because of the uid option below
       const searchResults = await client.search(searchCriteria, { uid: true });
+      // imapflow devuelve false cuando el servidor rechaza la busqueda. Tratarlo
+      // como lista vacia mostraria una bandeja sin correos y sin explicacion,
+      // que es exactamente el sintoma que costo diagnosticar la vez anterior.
+      if (searchResults === false) {
+        throw new Error("El servidor rechazo la busqueda de mensajes");
+      }
       const uids = Array.isArray(searchResults) ? searchResults : [];
       total = uids.length;
 

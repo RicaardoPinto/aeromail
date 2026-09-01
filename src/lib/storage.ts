@@ -149,14 +149,27 @@ export function getUserData(
           userId,
           parsed.identities?.[0]?.name || defaultName,
           parsed.identities?.[0]?.email || defaultEmail,
-          parsed.identities?.[0]?.organization || "Mi Empresa"
+          parsed.identities?.[0]?.organization,
+          parsed.identities?.[0]
         );
         saveUserData(userId, parsed);
       }
 
       return parsed;
     } catch (err) {
-      console.error("Error reading user data file:", err);
+      // No se puede continuar hacia el bloque de semilla: reescribiria el
+      // fichero con los valores por defecto y borraria identidad, firmas,
+      // preferencias y contactos reales. Se aparta una copia para poder
+      // recuperarlos a mano y se sigue con datos limpios, de modo que la
+      // cuenta no queda inutilizable.
+      console.error("Datos de usuario ilegibles, se aparta una copia:", err);
+      try {
+        const respaldo = filePath + ".corrupto." + Date.now();
+        fs.renameSync(filePath, respaldo);
+        console.error("Copia del fichero danado en:", respaldo);
+      } catch (errRespaldo) {
+        console.error("Ademas fallo el respaldo:", errRespaldo);
+      }
     }
   }
 
@@ -203,7 +216,14 @@ export function getUserData(
 export function saveUserData(userId: string, data: UserDataStore): void {
   ensureDataDir();
   const filePath = getUserFilePath(userId);
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+
+  // Se escribe a un temporal y se renombra. El renombrado es atomico dentro del
+  // mismo volumen, asi que el fichero real nunca queda a medias: o esta el
+  // contenido anterior completo, o el nuevo completo. Un corte de luz a mitad
+  // de los 90 KB dejaria basura si se escribiera directamente encima.
+  const temporal = filePath + "." + process.pid + "." + Date.now() + ".tmp";
+  fs.writeFileSync(temporal, JSON.stringify(data, null, 2), "utf-8");
+  fs.renameSync(temporal, filePath);
 }
 
 export function getSignatures(
@@ -400,6 +420,24 @@ export function saveUserPreferences(
 const MAX_CONTACTOS = 500;
 
 /**
+ * Comprobacion minima pero real de una direccion. Antes bastaba con contener
+ * una arroba, de modo que "@", "a@" y "@b" entraban en la lista de contactos.
+ * Se hace sin expresion regular a proposito: es mas facil de leer y de revisar.
+ */
+function esDireccionValida(valor: string): boolean {
+  if (!valor || valor.includes(" ")) return false;
+  const partes = valor.split("@");
+  if (partes.length !== 2) return false;
+  const [local, dominio] = partes;
+  if (!local || !dominio) return false;
+  return (
+    dominio.includes(".") &&
+    !dominio.startsWith(".") &&
+    !dominio.endsWith(".")
+  );
+}
+
+/**
  * Devuelve los contactos ordenados por uso reciente y frecuencia, que es el
  * orden en que una persona espera verlos al autocompletar.
  */
@@ -408,7 +446,8 @@ export function getContacts(userId: string): Contact[] {
   const contactos = store.contacts || [];
   return [...contactos].sort((a, b) => {
     if (b.count !== a.count) return b.count - a.count;
-    return b.lastSeen.localeCompare(a.lastSeen);
+    // Un fichero escrito por una version anterior puede no traer lastSeen.
+    return (b.lastSeen || "").localeCompare(a.lastSeen || "");
   });
 }
 
@@ -429,7 +468,7 @@ export function recordContacts(
 
   for (const entrada of entradas) {
     const direccion = (entrada.address || "").trim().toLowerCase();
-    if (!direccion || !direccion.includes("@")) continue;
+    if (!direccion || !esDireccionValida(direccion)) continue;
 
     const existente = indice.get(direccion);
     if (existente) {
@@ -453,7 +492,11 @@ export function recordContacts(
   // Se poda por uso, no por antiguedad: perder un contacto frecuente molesta
   // mas que conservar uno visto una vez.
   const actualizados = [...indice.values()]
-    .sort((a, b) => (b.count !== a.count ? b.count - a.count : b.lastSeen.localeCompare(a.lastSeen)))
+    .sort((a, b) =>
+      b.count !== a.count
+        ? b.count - a.count
+        : (b.lastSeen || "").localeCompare(a.lastSeen || "")
+    )
     .slice(0, MAX_CONTACTOS);
 
   store.contacts = actualizados;
