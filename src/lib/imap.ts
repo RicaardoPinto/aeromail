@@ -493,3 +493,72 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
+type MailboxListEntry = Awaited<ReturnType<ImapFlow["list"]>>[number];
+
+/**
+ * Picks a folder by its IMAP special-use flag, falling back to well known
+ * names for servers that do not advertise the flag.
+ */
+function pickSpecialFolder(
+  mailboxes: MailboxListEntry[],
+  specialUse: string,
+  fallbackNames: string[]
+): string | null {
+  const flagged = mailboxes.find(
+    (m) => m.specialUse?.toLowerCase() === specialUse.toLowerCase()
+  );
+  if (flagged) return flagged.path;
+
+  const wanted = fallbackNames.map((n) => n.toLowerCase());
+  const byName = mailboxes.find(
+    (m) =>
+      wanted.includes(m.name.toLowerCase()) ||
+      wanted.includes(m.path.toLowerCase())
+  );
+  return byName ? byName.path : null;
+}
+
+/**
+ * Resolves the path of a special-use folder, or null when the account has none
+ */
+export async function getSpecialFolderPath(
+  config: ImapConfig,
+  specialUse: string,
+  fallbackNames: string[]
+): Promise<string | null> {
+  const client = createImapClient(config);
+  try {
+    await client.connect();
+    return pickSpecialFolder(await client.list(), specialUse, fallbackNames);
+  } finally {
+    try {
+      await client.logout();
+    } catch {}
+  }
+}
+
+/**
+ * Stores a raw RFC822 message in a special-use folder. Returns the folder it
+ * was written to, or null when the account has no matching folder.
+ */
+export async function appendToSpecialFolder(
+  config: ImapConfig,
+  specialUse: string,
+  fallbackNames: string[],
+  raw: Buffer,
+  flags: string[] = ["\\Seen"]
+): Promise<string | null> {
+  const client = createImapClient(config);
+  try {
+    await client.connect();
+    const path = pickSpecialFolder(await client.list(), specialUse, fallbackNames);
+    if (!path) return null;
+    await client.append(path, raw, flags);
+    return path;
+  } finally {
+    try {
+      await client.logout();
+    } catch {}
+  }
+}

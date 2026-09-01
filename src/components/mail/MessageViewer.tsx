@@ -11,6 +11,8 @@ import {
   Star,
   Download,
   ShieldAlert,
+  MailWarning,
+  ShieldCheck,
   Paperclip,
   MoreVertical,
   Maximize2,
@@ -26,6 +28,8 @@ interface MessageViewerProps {
   onToggleStar: () => void;
   onLoadRemoteImages: () => void;
   hasLoadedRemoteImages: boolean;
+  onMarkSpam: () => void;
+  isSpamFolder: boolean;
 }
 
 export function MessageViewer({
@@ -36,6 +40,8 @@ export function MessageViewer({
   onToggleStar,
   onLoadRemoteImages,
   hasLoadedRemoteImages,
+  onMarkSpam,
+  isSpamFolder,
 }: MessageViewerProps) {
   if (isLoading) {
     return (
@@ -103,6 +109,27 @@ export function MessageViewer({
                 message.flagged && "fill-amber-400 text-amber-400"
               )}
             />
+          </button>
+
+          <button
+            onClick={onMarkSpam}
+            className={cn(
+              "p-2 rounded-lg transition-colors",
+              isSpamFolder
+                ? "text-emerald-600 hover:bg-emerald-500/10"
+                : "text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10"
+            )}
+            title={
+              isSpamFolder
+                ? "No es correo no deseado: devolver a la bandeja de entrada"
+                : "Marcar como correo no deseado"
+            }
+          >
+            {isSpamFolder ? (
+              <ShieldCheck className="w-4 h-4" />
+            ) : (
+              <MailWarning className="w-4 h-4" />
+            )}
           </button>
 
           <button

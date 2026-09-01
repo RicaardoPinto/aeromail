@@ -265,6 +265,45 @@ export default function WebmailPage() {
     }
   };
 
+  // La carpeta de spam se detecta por su marca IMAP, con nombres habituales
+  // como respaldo para servidores que no la anuncian.
+  const carpetaSpam = folders.find(
+    (f) =>
+      (f.specialUse || "").toLowerCase().endsWith("junk") ||
+      ["junk", "spam", "correo no deseado"].includes(f.name.toLowerCase())
+  );
+  const isSpamFolder =
+    !!carpetaSpam &&
+    selectedFolder.toLowerCase() === carpetaSpam.path.toLowerCase();
+
+  const handleMarkSpam = async () => {
+    if (!selectedUid) return;
+    try {
+      const res = await fetch("/api/mail/spam", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: isSpamFolder ? "unmark" : "mark",
+          folder: selectedFolder,
+          uids: [selectedUid],
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error(data.error || "No se pudo mover el correo");
+        return;
+      }
+
+      setMessages((prev) => prev.filter((m) => m.uid !== selectedUid));
+      setSelectedUid(null);
+      setCurrentMessage(null);
+      loadFolders();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleReply = (mode: "reply" | "replyAll" | "forward") => {
     if (!currentMessage) return;
 
@@ -367,6 +406,8 @@ export default function WebmailPage() {
           message={currentMessage}
           isLoading={isLoadingViewer}
           onReply={handleReply}
+          onMarkSpam={handleMarkSpam}
+          isSpamFolder={isSpamFolder}
           onDelete={() => selectedUid && handleDeleteMessage(selectedUid)}
           onToggleStar={() =>
             selectedUid &&
