@@ -84,6 +84,7 @@ export function SignatureManager({
   const [generatedHtml, setGeneratedHtml] = useState<string>("");
   const [customHtml, setCustomHtml] = useState<string>("");
   const [isManualEdit, setIsManualEdit] = useState(false);
+  const [subiendoLogo, setSubiendoLogo] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -103,15 +104,38 @@ export function SignatureManager({
     setBranding((prev) => ({ ...prev, ...updates }));
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  /**
+   * Sube el logo al servidor y usa su dirección pública.
+   *
+   * Antes se incrustaba como data URL, en base64 dentro del propio HTML. Eso
+   * hacía dos cosas malas: engordaba cada correo enviado con la imagen entera,
+   * y sobre todo Outlook y Gmail bloquean o eliminan las imágenes en ese
+   * formato. La imagen viajaba pero no se veía, que es justo lo que pasaba.
+   */
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      handleUpdateBranding({ logoUrl: reader.result as string });
-    };
-    reader.readAsDataURL(file);
+    setSubiendoLogo(true);
+    try {
+      const cuerpo = new FormData();
+      cuerpo.append("archivo", file);
+
+      const res = await fetch("/api/media", { method: "POST", body: cuerpo });
+      const data = await res.json();
+
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || "No se pudo subir la imagen");
+      }
+
+      handleUpdateBranding({ logoUrl: data.url });
+    } catch (err: any) {
+      alert(err.message || "No se pudo subir la imagen");
+    } finally {
+      setSubiendoLogo(false);
+      // Se limpia para poder volver a elegir el mismo archivo si hace falta.
+      e.target.value = "";
+    }
   };
 
   const handleApplyPalette = (palette: typeof PRESET_COLOR_PALETTES[0]) => {
@@ -510,11 +534,14 @@ export function SignatureManager({
                       <div className="flex-1 space-y-1.5">
                         <label className="px-3 py-1.5 rounded-xl border bg-background hover:bg-muted text-xs font-medium cursor-pointer transition-colors inline-flex items-center gap-1.5 shadow-sm">
                           <Upload className="w-3.5 h-3.5 text-primary" />
-                          <span>Subir Imagen / Logo</span>
+                          <span>
+                            {subiendoLogo ? "Subiendo..." : "Subir Imagen / Logo"}
+                          </span>
                           <input
                             type="file"
-                            accept="image/*"
+                            accept="image/png,image/jpeg,image/gif,image/webp"
                             onChange={handleLogoUpload}
+                            disabled={subiendoLogo}
                             className="hidden"
                           />
                         </label>

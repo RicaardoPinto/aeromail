@@ -230,7 +230,7 @@ export function MessageViewer({
       </div>
 
       {/* Secure Sandboxed Iframe Email Body */}
-      <div className="flex-1 overflow-hidden p-4 bg-white dark:bg-zinc-950">
+      <div className="flex-1 overflow-hidden p-4 bg-white">
         <iframe
           title="Contenido seguro del correo"
           sandbox="allow-popups allow-popups-to-escape-sandbox"
@@ -241,27 +241,27 @@ export function MessageViewer({
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <style>
+                  /* Fondo claro SIEMPRE, aunque la aplicacion este en tema
+                     oscuro. Un correo se escribe para fondo blanco y trae sus
+                     propios colores: forzar el tema oscuro aqui volvia ilegible
+                     el texto y dejaba recuadros blancos sueltos donde el autor
+                     si habia puesto fondo. Es lo que hacen Gmail y Outlook. */
                   :root {
-                    color-scheme: light dark;
+                    color-scheme: light;
                   }
                   body {
-                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                    font-family: Calibri, Carlito, "Segoe UI", Candara, "Trebuchet MS", sans-serif;
                     font-size: 14px;
-                    line-height: 1.6;
+                    line-height: 1.5;
                     margin: 0;
-                    padding: 8px;
-                    color: #1e293b;
-                    background-color: transparent;
+                    padding: 16px;
+                    color: #23213A;
+                    background-color: #ffffff;
                     word-wrap: break-word;
                     overflow-wrap: break-word;
                   }
-                  @media (prefers-color-scheme: dark) {
-                    body {
-                      color: #f1f5f9;
-                    }
-                    a {
-                      color: #60a5fa;
-                    }
+                  a {
+                    color: #5C5498;
                   }
                   img {
                     max-width: 100%;
