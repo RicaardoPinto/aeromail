@@ -68,7 +68,11 @@ export function TiptapEditor({
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm dark:prose-invert max-w-none focus:outline-none p-3 tiptap-content",
+          // Sin dark:prose-invert: esa clase pinta el texto en claro sobre cada
+          // elemento hijo cuando la aplicacion esta en tema oscuro, y como el
+          // area de escritura ahora es blanca el resultado era blanco sobre
+          // blanco. El correo siempre se redacta y se lee sobre fondo claro.
+          "prose prose-sm max-w-none focus:outline-none p-3 tiptap-content",
         // Mismas tipografia, interlineado, color y fondo con que saldra el
         // correo. Antes el area de escritura seguia el tema oscuro de la
         // aplicacion y lo que se veia al redactar no se parecia a lo que
