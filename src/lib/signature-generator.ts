@@ -53,11 +53,20 @@ export const FONT_STACK =
  * es el minimo para lectura comoda; los dos ultimos son solo superficie.
  */
 export const BRAND = {
+  /**
+   * El morado es color de ACENTO: enlaces, cabeceras de tabla, detalles de la
+   * firma. El texto va en gris neutro.
+   *
+   * Antes los tres tonos de texto se derivaban del morado y el correo entero
+   * salia teñido. Un color de marca aplicado al cuerpo del texto no se lee como
+   * identidad, se lee como error de impresion.
+   */
   primary: "#5C5498",
-  ink: "#23213A",
-  muted: "#57546B",
-  soft: "#6E6B80",
-  hairline: "#E4E2EE",
+  ink: "#1F2328",
+  muted: "#57606A",
+  soft: "#656D76",
+  hairline: "#E5E7EB",
+  /** Fondo tenue, unico sitio donde la marca toca una superficie amplia. */
   tint: "#F5F4FA",
 };
 

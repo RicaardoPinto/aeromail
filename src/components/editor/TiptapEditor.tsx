@@ -69,9 +69,11 @@ export function TiptapEditor({
       attributes: {
         class:
           "prose prose-sm dark:prose-invert max-w-none focus:outline-none p-3 tiptap-content",
-        // La misma tipografia e interlineado con que saldra el correo, para
-        // que lo que se escribe se parezca a lo que recibe el destinatario.
-        style: `min-height: ${minHeight}; font-family: ${FONT_STACK}; font-size: 14px; line-height: 1.4;`,
+        // Mismas tipografia, interlineado, color y fondo con que saldra el
+        // correo. Antes el area de escritura seguia el tema oscuro de la
+        // aplicacion y lo que se veia al redactar no se parecia a lo que
+        // llegaba al destinatario, que siempre lo recibe sobre blanco.
+        style: `min-height: ${minHeight}; font-family: ${FONT_STACK}; font-size: 14px; line-height: 1.4; color: #1F2328; background-color: #ffffff;`,
       },
     },
     onUpdate: ({ editor }) => {
