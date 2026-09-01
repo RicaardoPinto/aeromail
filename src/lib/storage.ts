@@ -125,6 +125,20 @@ export function getUserData(
       const content = fs.readFileSync(filePath, "utf-8");
       const parsed: UserDataStore = JSON.parse(content);
       
+      // Las firmas creadas antes de introducir la marca "generated" no la traen.
+      // Las cinco plantillas de la app se reconocen por su id: marcarlas es lo
+      // que permite que se rehagan al cambiar los datos de la identidad. Sin
+      // esto, una cuenta existente nunca veria sus datos reales en la firma.
+      const idsDePlantilla = new Set(["sig_1", "sig_2", "sig_3", "sig_4", "sig_5"]);
+      let marcadas = false;
+      for (const firma of parsed.signatures || []) {
+        if (firma.generated === undefined && idsDePlantilla.has(firma.id)) {
+          firma.generated = true;
+          marcadas = true;
+        }
+      }
+      if (marcadas) saveUserData(userId, parsed);
+
       // Auto-migrate if user has old/legacy signatures or less than modern studio layouts
       if (
         !parsed.signatures ||
