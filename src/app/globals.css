@@ -76,8 +76,11 @@
 }
 
 /* Editor typography tweaks */
+/* El mismo margen que aplica email-format.ts al enviar (0.45 x 14px = 6px).
+   Si estos dos valores se separan, lo que se escribe deja de parecerse a lo
+   que recibe el destinatario, que es justo lo que se queria evitar. */
 .tiptap-content p {
-  margin-bottom: 0.5rem;
+  margin-bottom: 6px;
 }
 .tiptap-content p:last-child {
   margin-bottom: 0;

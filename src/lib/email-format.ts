@@ -64,9 +64,13 @@ export function prepararHtmlDeCorreo(
 
     const enLaFirma = (el: Element) => !!el.closest("[data-signature]");
 
-    // Separacion proporcional al cuerpo: a 14px son 10px, suficiente para
-    // distinguir parrafos sin que el texto quede desperdigado.
-    const separacion = Math.round(fontSize * 0.7);
+    // Separacion proporcional al cuerpo: a 14px son 6px. Sumada al interlineado
+    // de 1.4 deja unos 26px entre lineas, suficiente para distinguir parrafos
+    // sin que parezca que hay una linea en blanco entre cada uno.
+    //
+    // Para pegar dos lineas sin ninguna separacion esta Mayus+Enter, que
+    // inserta un salto dentro del mismo parrafo en vez de crear otro.
+    const separacion = Math.round(fontSize * 0.45);
 
     body.querySelectorAll("p").forEach((p) => {
       if (enLaFirma(p)) return;
