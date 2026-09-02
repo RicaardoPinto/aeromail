@@ -205,6 +205,7 @@ export function getUserData(
       composeFontFamily: FONT_STACK,
       composeFontSize: 14,
       composeLineHeight: 1.4,
+      dominiosDeConfianza: [],
     },
     contacts: [],
   };

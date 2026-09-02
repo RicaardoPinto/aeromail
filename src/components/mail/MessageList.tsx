@@ -102,7 +102,11 @@ export function MessageList({
                 className={cn(
                   "p-3 cursor-pointer transition-all relative flex flex-col gap-1 hover:bg-muted/40",
                   isSelected && "bg-primary/10 hover:bg-primary/15 border-l-2 border-primary",
-                  msg.unread && "font-semibold bg-background"
+                  // Lo no leido se levanta con una superficie mas clara. No se
+                  // usa el borde lateral ni el tinte de marca: esos ya
+                  // significan "seleccionado" y dos cosas distintas no pueden
+                  // verse igual.
+                  msg.unread && !isSelected && "bg-foreground/[0.06] font-semibold"
                 )}
               >
                 {/* Top Row: Sender & Date */}
@@ -110,7 +114,10 @@ export function MessageList({
                   <div className="flex items-center gap-2 truncate">
                     {/* Unread indicator dot */}
                     {msg.unread && (
-                      <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                      <span
+                        className="w-2.5 h-2.5 rounded-full bg-primary shrink-0 ring-2 ring-primary/25"
+                        aria-label="Sin leer"
+                      />
                     )}
                     <span
                       className={cn(

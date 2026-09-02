@@ -28,6 +28,8 @@ interface MessageViewerProps {
   onToggleStar: () => void;
   onLoadRemoteImages: () => void;
   hasLoadedRemoteImages: boolean;
+  /** Dominio del remitente, para decir en el boton en quien se confia */
+  dominioRemitente?: string;
   onMarkSpam: () => void;
   isSpamFolder: boolean;
 }
@@ -40,6 +42,7 @@ export function MessageViewer({
   onToggleStar,
   onLoadRemoteImages,
   hasLoadedRemoteImages,
+  dominioRemitente,
   onMarkSpam,
   isSpamFolder,
 }: MessageViewerProps) {
@@ -191,8 +194,15 @@ export function MessageViewer({
             <button
               onClick={onLoadRemoteImages}
               className="px-3 py-1 rounded-lg bg-amber-500 text-white font-medium hover:bg-amber-600 transition-colors shrink-0 shadow-sm"
+              title={
+                dominioRemitente
+                  ? "Se cargarán ahora y en los próximos correos de " + dominioRemitente
+                  : "Cargar las imágenes de este correo"
+              }
             >
-              Cargar imágenes externas
+              {dominioRemitente
+                ? "Confiar en " + dominioRemitente
+                : "Cargar imágenes externas"}
             </button>
           </div>
         )}

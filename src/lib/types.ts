@@ -148,6 +148,8 @@ export interface UserPreferences {
   composeFontFamily?: string;
   composeFontSize?: number; // px
   composeLineHeight?: number; // 1.2 - 1.8
+  /** Dominios cuyas imagenes se cargan sin preguntar */
+  dominiosDeConfianza?: string[];
 }
 
 export interface SendMailPayload {

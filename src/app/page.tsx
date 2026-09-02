@@ -17,6 +17,13 @@ import { ComposeModal } from "@/components/mail/ComposeModal";
 import { SignatureManager } from "@/components/signatures/SignatureManager";
 import { LoginForm } from "@/components/auth/LoginForm";
 
+/** Dominio de una direccion, en minusculas. "" si no parece una direccion. */
+function dominioDe(direccion?: string): string {
+  if (!direccion) return "";
+  const partes = direccion.toLowerCase().trim().split("@");
+  return partes.length === 2 ? partes[1] : "";
+}
+
 export default function WebmailPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [userEmail, setUserEmail] = useState("");
@@ -170,12 +177,55 @@ export default function WebmailPage() {
     }
   }, [isAuthenticated, selectedFolder, loadFolders, loadMessages]);
 
+  const dominiosDeConfianza = preferences?.dominiosDeConfianza || [];
+
+  const esDeConfianza = useCallback(
+    (direccion?: string) => {
+      const dominio = dominioDe(direccion);
+      return !!dominio && dominiosDeConfianza.includes(dominio);
+    },
+    [dominiosDeConfianza]
+  );
+
   useEffect(() => {
-    if (selectedUid) {
-      setHasLoadedRemoteImages(false);
-      loadFullMessage(selectedUid, false);
+    if (!selectedUid) return;
+    // Si ya se confia en el remitente, las imagenes se cargan de entrada y el
+    // aviso ni siquiera aparece.
+    const mensaje = messages.find((m) => m.uid === selectedUid);
+    const confiado = esDeConfianza(mensaje?.from.address);
+    setHasLoadedRemoteImages(confiado);
+    loadFullMessage(selectedUid, confiado);
+    // messages cambia al marcar como leido; incluirlo relanzaria la carga.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedUid, loadFullMessage, esDeConfianza]);
+
+  /**
+   * Aceptar las imagenes de un correo pasa a valer para todo el dominio: es
+   * una decision sobre en quien confias, no sobre un mensaje suelto. Repetirla
+   * en cada correo del mismo remitente no aporta seguridad, solo fatiga.
+   */
+  const confiarEnRemitente = async () => {
+    setHasLoadedRemoteImages(true);
+    if (selectedUid) loadFullMessage(selectedUid, true);
+
+    const dominio = dominioDe(currentMessage?.from.address);
+    if (!dominio || dominiosDeConfianza.includes(dominio)) return;
+
+    const actualizados = [...dominiosDeConfianza, dominio];
+    setPreferences((prev) =>
+      prev ? { ...prev, dominiosDeConfianza: actualizados } : prev
+    );
+
+    try {
+      await fetch("/api/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dominiosDeConfianza: actualizados }),
+      });
+    } catch (err) {
+      console.error("No se pudo recordar el dominio de confianza:", err);
     }
-  }, [selectedUid, loadFullMessage]);
+  };
 
   // Global keyboard shortcuts (C for compose, Escape to close, / to search)
   useEffect(() => {
@@ -428,11 +478,9 @@ export default function WebmailPage() {
               !!currentMessage?.flagged
             )
           }
-          onLoadRemoteImages={() => {
-            setHasLoadedRemoteImages(true);
-            if (selectedUid) loadFullMessage(selectedUid, true);
-          }}
+          onLoadRemoteImages={confiarEnRemitente}
           hasLoadedRemoteImages={hasLoadedRemoteImages}
+          dominioRemitente={dominioDe(currentMessage?.from.address)}
         />
       </main>
 
