@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import TextStyle from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
+import Image from "@tiptap/extension-image";
 import Table from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
@@ -57,6 +58,10 @@ export function TiptapEditor({
       }),
       TextStyle,
       Color,
+      // Sin esta extension ProseMirror descarta en silencio cualquier <img> al
+      // interpretar el contenido: se perdian las imagenes de los correos
+      // citados al responder o reenviar.
+      Image.configure({ inline: true, allowBase64: true }),
       // Las tablas se estilizan al enviar (email-format.ts): aqui solo se
       // necesita poder crearlas y editarlas.
       Table.configure({ resizable: true }),

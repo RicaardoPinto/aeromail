@@ -57,23 +57,6 @@ function variablesDeIdentidad(ident?: Identity): Record<string, string> {
   };
 }
 
-/**
- * Quita las firmas ya insertadas y anade la nueva.
- *
- * Se usa el analizador del navegador y no una expresion regular porque la
- * firma lleva div anidados: la regex anterior cortaba en el primer cierre y
- * dejaba el resto huerfano, de modo que al probar varias se iban apilando.
- */
-function reemplazarFirma(html: string, bloqueNuevo: string): string {
-  if (typeof window === "undefined" || typeof DOMParser === "undefined") {
-    return html + bloqueNuevo;
-  }
-  const doc = new DOMParser().parseFromString("<body>" + html + "</body>", "text/html");
-  doc.body
-    .querySelectorAll('[data-signature="aeromail-sig"]')
-    .forEach((nodo) => nodo.remove());
-  return doc.body.innerHTML + bloqueNuevo;
-}
 
 /**
  * Campo de direcciones con sugerencias de contactos ya conocidos.
@@ -262,17 +245,11 @@ export function ComposeModal({
     const currentSig =
       signatures.find((s) => s.id === selectedSignatureId) || defaultSig;
 
-    const compiledSig =
-      currentSig && currentIdent
-        ? compileSignature(currentSig.htmlContent, variablesDeIdentidad(currentIdent))
-        : "";
-
-    const initBody = initialData?.body || "<p></p>";
-    const sigBlock = compiledSig
-      ? `<div data-signature="${MARCA_FIRMA}"><br/><br/>${compiledSig}</div>`
-      : "";
-
-    setBodyHtml(`${initBody}${sigBlock}`);
+    // La firma NO entra en el editor. ProseMirror interpreta el HTML contra su
+    // propio esquema y descarta lo que no reconoce: borraba el logo, aplanaba
+    // la tabla del disenno y perdia los tamanos de letra. Se compone aparte y
+    // se adjunta al enviar, asi llega tal como se disenno.
+    setBodyHtml(initialData?.body || "<p></p>");
     setTo(initialData?.to || "");
     setSubject(initialData?.subject || "");
     setCc("");
@@ -283,22 +260,25 @@ export function ComposeModal({
 
   if (!isOpen) return null;
 
-  const handleSignatureChange = (newSigId: string) => {
-    setSelectedSignatureId(newSigId);
-    const newSig = signatures.find((s) => s.id === newSigId);
-    const currentIdent =
-      identities.find((i) => i.id === selectedIdentity) || defaultIdentity;
+  const identidadElegida =
+    identities.find((i) => i.id === selectedIdentity) || defaultIdentity;
+  const firmaElegida =
+    signatures.find((s) => s.id === selectedSignatureId) || defaultSig;
 
-    const compiled =
-      newSig && currentIdent
-        ? compileSignature(newSig.htmlContent, variablesDeIdentidad(currentIdent))
-        : "";
-
-    const newSigBlock = compiled
-      ? `<div data-signature="${MARCA_FIRMA}"><br/><br/>${compiled}</div>`
+  const firmaCompilada =
+    firmaElegida && identidadElegida
+      ? compileSignature(firmaElegida.htmlContent, variablesDeIdentidad(identidadElegida))
       : "";
 
-    setBodyHtml((prev) => reemplazarFirma(prev, newSigBlock));
+  const bloqueDeFirma = firmaCompilada
+    ? `<div data-signature="${MARCA_FIRMA}"><br/><br/>${firmaCompilada}</div>`
+    : "";
+
+  // Basta con cambiar cual esta elegida: la vista previa y el envio la leen de
+  // ahi. Ya no hay que insertarla ni quitarla del cuerpo, que era de donde
+  // venia el problema de las firmas apiladas.
+  const handleSignatureChange = (newSigId: string) => {
+    setSelectedSignatureId(newSigId);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -345,7 +325,7 @@ export function ComposeModal({
       cc: cc ? cc.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
       bcc: bcc ? bcc.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
       subject: subject || "(Sin asunto)",
-      html: bodyHtml,
+      html: bodyHtml + bloqueDeFirma,
       inReplyTo: initialData?.inReplyTo,
       references: initialData?.references,
       attachments: attachments.map((a) => ({
@@ -508,6 +488,18 @@ export function ComposeModal({
               minHeight="240px"
               className="border-none shadow-none"
             />
+
+            {/* La firma se muestra tal cual saldra, pero fuera del editor para
+                que este no pueda alterarla. Es lo que garantiza que lo que ves
+                aqui sea exactamente lo que recibe el destinatario. */}
+            {firmaCompilada && (
+              <div className="bg-white px-3 pb-4">
+                <div
+                  style={{ color: "#1F2328" }}
+                  dangerouslySetInnerHTML={{ __html: firmaCompilada }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Attached Files List */}
