@@ -179,25 +179,34 @@ export default function WebmailPage() {
 
   const dominiosDeConfianza = preferences?.dominiosDeConfianza || [];
 
-  const esDeConfianza = useCallback(
-    (direccion?: string) => {
-      const dominio = dominioDe(direccion);
-      return !!dominio && dominiosDeConfianza.includes(dominio);
-    },
-    [dominiosDeConfianza]
-  );
+  /*
+    La lista se lee por referencia dentro del efecto y NO entra en sus
+    dependencias.
+
+    Ponerla ahi provoco un bucle infinito que tumbo el servidor de correo:
+    "preferences?.dominiosDeConfianza || []" crea un array nuevo en cada
+    renderizado cuando el campo no existe todavia, asi que la funcion que
+    dependia de el tambien era nueva cada vez, el efecto se relanzaba, cargaba
+    el mensaje, cambiaba el estado, y vuelta a empezar. Cada vuelta abria una
+    conexion IMAP.
+  */
+  const confianzaRef = useRef<string[]>([]);
+  useEffect(() => {
+    confianzaRef.current = preferences?.dominiosDeConfianza || [];
+  }, [preferences]);
 
   useEffect(() => {
     if (!selectedUid) return;
     // Si ya se confia en el remitente, las imagenes se cargan de entrada y el
     // aviso ni siquiera aparece.
     const mensaje = messages.find((m) => m.uid === selectedUid);
-    const confiado = esDeConfianza(mensaje?.from.address);
+    const dominio = dominioDe(mensaje?.from.address);
+    const confiado = !!dominio && confianzaRef.current.includes(dominio);
     setHasLoadedRemoteImages(confiado);
     loadFullMessage(selectedUid, confiado);
     // messages cambia al marcar como leido; incluirlo relanzaria la carga.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedUid, loadFullMessage, esDeConfianza]);
+  }, [selectedUid, loadFullMessage]);
 
   /**
    * Aceptar las imagenes de un correo pasa a valer para todo el dominio: es
@@ -212,6 +221,7 @@ export default function WebmailPage() {
     if (!dominio || dominiosDeConfianza.includes(dominio)) return;
 
     const actualizados = [...dominiosDeConfianza, dominio];
+    confianzaRef.current = actualizados;
     setPreferences((prev) =>
       prev ? { ...prev, dominiosDeConfianza: actualizados } : prev
     );
